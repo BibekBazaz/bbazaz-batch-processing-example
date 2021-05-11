@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="4e7dd688-fbef-4d60-981a-c9d5f8f2b10a"
+		file="application.properties" />
+	<file:config name="File_Config" doc:name="File Config" doc:id="98f4dc82-38e6-4560-978d-9c62afa69306" >
+		<file:connection workingDir="${app.home}" />
+	</file:config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="595dc506-caab-4abe-bee7-7b6abc88d358" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="bbazaz-batch-processing-exampleFlow" doc:id="c58379c8-8077-488b-be7f-8d205808255b" >
+		<http:listener doc:name="Listener" doc:id="de414e21-3b98-4929-8d1b-56255b722548" config-ref="HTTP_Listener_config" path="/mule4batch/start"/>
+		<file:read doc:name="Read Data file" doc:id="305a258b-e571-441e-8ae4-16612371a2e0" config-ref="File_Config" path="sampleData/data.csv" outputMimeType='application/csv; quote="\"\"\""; header=true' outputEncoding="UTF-8"/>
+		<logger level="INFO" doc:name="Log File started reading" doc:id="9bfa6742-3137-48f9-b714-8dfb010a7704" message='#["File is read. Starting batch processing at : " ++ now()]'/>
+		<batch:job jobName="bbazaz-batch-processing-exampleBatch_Job" doc:id="1f731dce-e22b-46b8-b396-85a22d0efd6d" maxFailedRecords="10000">
+			<batch:process-records >
+				<batch:step name="Calculateworth" doc:id="fd7a9cc8-f1f8-4e43-820f-1505221abcfb" >
+					<ee:transform doc:name="Group By and Map" doc:id="b8b2b46f-05bf-40e4-a5ec-a083d135be06" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+(payload groupBy ((item, index) -> item.InvoiceNo)) pluck ((value, key, index) -> {
+    CustomerId:key,
+        TotalWorth:value reduce((obj, totalPrice = 0) -> 
+         totalPrice + (obj.Quantity * obj.UnitPrice)),
+         "InvoiceDate": value.InvoiceDate 
+})]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</batch:step>
+				<batch:step name="CaluclateWorthOfEachCustomer" doc:id="932f125d-643b-46f5-9299-cd2caaabe182" >
+					<ee:transform doc:name="Update as Prime members" doc:id="8ff988af-9fca-43a7-8645-185ae7374fea" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+(payload groupBy(item) -> item.CustomerId) pluck(value,key,index) -> {
+	"CustomerId" : key,
+	"TotalPurchase" : value.TotalWorth reduce ((obj,total= 0.00)-> (total default 0.00) + obj.TotalWorth) as Number
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</batch:step>
+				<batch:step name="SendDiscounts" doc:id="39e7639f-2598-4dea-b604-c6ebb8651db8" >
+					<ee:transform doc:name="Filter" doc:id="a5d58901-e2d2-47be-8224-ef50614e332c" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+(payload filter(item) -> (item.TotalPurchase >100)) map{
+	"CustomerId" : $.CustomerId,
+	"DiscountCoupon" : "PRIME_BENEFIT",
+	"TotalPurchase" : $.TotalPurchase
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="674686bb-a158-4c32-8d74-c14262a1ff79" message="#[payload]"/>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+</mule>
