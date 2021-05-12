@@ -21,7 +21,7 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 	</http:listener-config>
 	<flow name="bbazaz-batch-processing-exampleFlow" doc:id="c58379c8-8077-488b-be7f-8d205808255b" >
 		<http:listener doc:name="Listener" doc:id="de414e21-3b98-4929-8d1b-56255b722548" config-ref="HTTP_Listener_config" path="/mule4batch/start"/>
-		<file:read doc:name="Read Data file" doc:id="305a258b-e571-441e-8ae4-16612371a2e0" config-ref="File_Config" path="sampleData/data.csv" outputMimeType='application/csv; quote="\"\"\""; header=true' outputEncoding="UTF-8"/>
+		<file:read doc:name="Read Data file" doc:id="305a258b-e571-441e-8ae4-16612371a2e0" config-ref="File_Config" path="sampleData/data.csv" outputMimeType='application/csv; escape="\" \""; header=true' outputEncoding="UTF-8"/>
 		<logger level="INFO" doc:name="Log File started reading" doc:id="9bfa6742-3137-48f9-b714-8dfb010a7704" message='#["File is read. Starting batch processing at : " ++ now()]'/>
 		<batch:job jobName="bbazaz-batch-processing-exampleBatch_Job" doc:id="1f731dce-e22b-46b8-b396-85a22d0efd6d" maxFailedRecords="10000">
 			<batch:process-records >
@@ -34,7 +34,7 @@ output application/json
 (payload groupBy ((item, index) -> item.InvoiceNo)) pluck ((value, key, index) -> {
     CustomerId:key,
         TotalWorth:value reduce((obj, totalPrice = 0) -> 
-         totalPrice + (obj.Quantity * obj.UnitPrice)),
+         totalPrice + ((obj.Quantity as Number) * (obj.UnitPrice))),
          "InvoiceDate": value.InvoiceDate 
 })]]></ee:set-payload>
 						</ee:message>
@@ -48,28 +48,28 @@ output application/java
 ---
 (payload groupBy(item) -> item.CustomerId) pluck(value,key,index) -> {
 	"CustomerId" : key,
-	"TotalPurchase" : value.TotalWorth reduce ((obj,total= 0.00)-> (total default 0.00) + obj.TotalWorth) as Number
+	"TotalPurchase" : if(value.TotalWorth is Array) sum(value.TotalWorth) as Number else value.TotalWorth as Number
 }]]></ee:set-payload>
 						</ee:message>
 					</ee:transform>
 				</batch:step>
-				<batch:step name="SendDiscounts" doc:id="39e7639f-2598-4dea-b604-c6ebb8651db8" >
+				<batch:step name="SendDiscounts" doc:id="39e7639f-2598-4dea-b604-c6ebb8651db8">
+					<logger level="INFO" doc:name="Log winners" doc:id="80766da4-984d-425c-b84d-07ce7fb35eaa" message='#[payload]' />
 					<ee:transform doc:name="Filter" doc:id="a5d58901-e2d2-47be-8224-ef50614e332c" >
 						<ee:message >
 							<ee:set-payload ><![CDATA[%dw 2.0
 output application/java
 ---
-(payload filter(item) -> (item.TotalPurchase >100)) map{
+payload map{
 	"CustomerId" : $.CustomerId,
-	"DiscountCoupon" : "PRIME_BENEFIT",
-	"TotalPurchase" : $.TotalPurchase
-}]]></ee:set-payload>
+	"DiscountCoupon" : "PRIME_BENEFIT"
+} ]]></ee:set-payload>
 						</ee:message>
 					</ee:transform>
 				</batch:step>
 			</batch:process-records>
 			<batch:on-complete >
-				<logger level="INFO" doc:name="Logger" doc:id="674686bb-a158-4c32-8d74-c14262a1ff79" message="#[payload]"/>
+				<logger level="INFO" doc:name="Logger" doc:id="674686bb-a158-4c32-8d74-c14262a1ff79" message='#[write(payload,"application/java")]'/>
 			</batch:on-complete>
 		</batch:job>
 	</flow>
