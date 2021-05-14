@@ -53,7 +53,7 @@ output application/java
 						</ee:message>
 					</ee:transform>
 				</batch:step>
-				<batch:step name="SendDiscounts" doc:id="39e7639f-2598-4dea-b604-c6ebb8651db8">
+				<batch:step name="SendDiscounts" doc:id="39e7639f-2598-4dea-b604-c6ebb8651db8" acceptExpression="#[payload[0].TotalPurchase &gt;100]">
 					<logger level="INFO" doc:name="Log winners" doc:id="80766da4-984d-425c-b84d-07ce7fb35eaa" message='#[payload]' />
 					<ee:transform doc:name="Filter" doc:id="a5d58901-e2d2-47be-8224-ef50614e332c" >
 						<ee:message >
