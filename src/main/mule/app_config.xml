@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="73875c4c-c45a-444d-93db-c677fc715ff1"
+		file="application.properties" />
+	<file:config name="File_Config_1" doc:name="File Config"
+		doc:id="60ace8d5-d8ad-4852-bd53-8f05139ecc38">
+		<file:connection workingDir='#["//Users//bibekkumarbazaz//AnypointStudio//logs//"]' />
+	</file:config>
+	<file:config name="File_Config" doc:name="File Config"
+		doc:id="732ddc4a-e6d0-4aae-9ea0-8730bb938219">
+		<file:connection workingDir='${app.home}' />
+	</file:config>
+	<http:listener-config name="HTTP_Listener_config"
+		doc:name="HTTP Listener config"
+		doc:id="c112db31-4209-4c6c-953d-af213a24764b">
+		<http:listener-connection host="0.0.0.0"
+			port="8081" />
+	</http:listener-config>
+</mule>
